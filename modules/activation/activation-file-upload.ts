@@ -2,7 +2,8 @@ import type { Page } from "playwright";
 import path from 'node:path'
 import fs from 'node:fs'
 import { URLS } from "../../utitls/url.js";
-import { GeneratedFileRename } from "../../utitls/generated-file-rename.js";
+import { GeneratedFileRename } from "../utility/generated-file-rename.js";
+import { DesktopNotification } from "../../utitls/desktop-notification.js";
 
 export async function ActivationFileUpload(page: Page){
 
@@ -87,6 +88,11 @@ export async function ActivationFileUpload(page: Page){
             console.log(`🎉 ${file} uploaded succesfully`)
         }
 
-        await page.waitForTimeout(10000)
+        DesktopNotification(
+            "Activation Completed 🎉",
+            "Activation file created and uploded successfully!"
+        );
+
+        await page.waitForTimeout(5000)
     }
 }

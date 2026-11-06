@@ -3,7 +3,8 @@ import type { Page } from "playwright";
 import { URLS } from "../../utitls/url.js";
 import path from "node:path";
 import fs from "node:fs";
-import { GeneratedFileRename } from "../../utitls/generated-file-rename.js";
+import { GeneratedFileRename } from "../utility/generated-file-rename.js";
+import { DesktopNotification } from "../../utitls/desktop-notification.js";
 
 export async function FinanceFileUpload(page: Page) {
 
@@ -81,7 +82,7 @@ export async function FinanceFileUpload(page: Page) {
         fs.mkdirSync(downloadFolder, { recursive: true });
 
         const originalFileName = path.parse(file).name;
-        const fileName = GeneratedFileRename(originalFileName, 'failed-activation');
+        const fileName = GeneratedFileRename(originalFileName, 'failed-finance');
 
         await download.saveAs(path.join(downloadFolder, fileName));
 
@@ -90,4 +91,11 @@ export async function FinanceFileUpload(page: Page) {
     } else if (message.includes('successfully')) {
         console.log(`🎉 ${file} uploaded successfully`);
     }
+
+    DesktopNotification(
+        "Finance File Completed 🎉",
+        "Finance file created and uploded successfully!"
+    );
+
+    await page.waitForTimeout(5000)
 }

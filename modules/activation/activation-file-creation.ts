@@ -3,8 +3,10 @@ import ExcelJS from 'exceljs';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { ActivationTemplate } from '../../schema/activation-schemas/activation-template.js';
-import { formatDate_DDMMYYYY } from '../../utitls/format-date.js';
-import { GeneratedFileRename } from '../../utitls/generated-file-rename.js';
+import { formatDate_DDMMYYYY } from '../utility/format-date.js';
+import { GeneratedFileRename } from '../utility/generated-file-rename.js';
+import { findColumnByAliases, type ExcelHeader } from '../utility/column-helper.js';
+import { COLUMN_ALIASES } from '../../config/column-aliases.js';
 
 export async function ActivationFileCreation() {
 
@@ -47,25 +49,39 @@ export async function ActivationFileCreation() {
     }
 
     // Get column names and their positions
-    const headers: Record<string, number> = {};                 //'skucode' = 1
+    const headers: ExcelHeader[] = []
 
-    worksheet.getRow(1).eachCell((cell, colNumber) => {
-        headers[cell.text.trim()] = colNumber;
-    });
+    worksheet.getRow(1).eachCell((cell, colNumber)=>{
+        const name = cell.text.trim()
+
+        if(name){
+            headers.push({
+                name,
+                column: colNumber
+            })
+        }
+    })
 
     // Store transformed records
     const outputRows: ActivationTemplate[] = [];
 
-    // Read every Excel row
-    worksheet.eachRow((row, rowNumber) => {
+        const skuCodeColumn = findColumnByAliases(
+            headers,
+            'SKU Code',
+            COLUMN_ALIASES.SKUCode
+        )
 
-        // Skip header row
-        if (rowNumber === 1) return;
+        const serialNumberColumn = findColumnByAliases(
+            headers,
+            'Serial Number',
+            COLUMN_ALIASES.serialNumber
+        )
 
-        const skuCodeColumn = headers['SKUCode'];
-        const serialNumberColumn = headers['SerialNumber1'];
-        const activationDateColumn = headers['Tertiary Considered For Date'];
-
+        const activationDateColumn = findColumnByAliases(
+            headers,
+            'Activation Date',
+            COLUMN_ALIASES.tertiaryDate
+        )
         if (
             !skuCodeColumn || 
             !serialNumberColumn || 
@@ -73,6 +89,12 @@ export async function ActivationFileCreation() {
         ) {
             throw new Error('Required Excel columns are missing!');
         }
+
+    // Read every Excel row
+    worksheet.eachRow((row, rowNumber) => {
+
+        // Skip header row
+        if (rowNumber === 1) return;
 
         const sku_code = row.getCell(skuCodeColumn).text.trim();
         const serial_number_primary = row.getCell(serialNumberColumn).text.trim();
