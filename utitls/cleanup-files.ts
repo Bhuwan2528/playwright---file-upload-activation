@@ -1,5 +1,6 @@
 
 import fs from "node:fs";
+import { DesktopNotification } from "./desktop-notification.js";
 
 export async function CleanupGeneratedFiles(backedUpFiles: string[]) {
 
@@ -23,4 +24,9 @@ export async function CleanupGeneratedFiles(backedUpFiles: string[]) {
     console.log('Cleanup Completed!');
     console.log('Deleted Files:', backedUpFiles.length);
     console.log('--------------------------------');
+
+    DesktopNotification(
+        "⚡ Backup and Cleanup Done ",
+        "Backup and Cleanup of all genrated files are done"
+    );
 }

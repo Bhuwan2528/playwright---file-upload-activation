@@ -93,7 +93,7 @@ export async function FinanceFileUpload(page: Page) {
     }
 
     DesktopNotification(
-        "Finance File Completed 🎉",
+        "⚡ Finance File Completed ",
         "Finance file created and uploded successfully!"
     );
 

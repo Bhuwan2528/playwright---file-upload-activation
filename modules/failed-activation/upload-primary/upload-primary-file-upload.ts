@@ -3,6 +3,7 @@ import type { Page } from "playwright";
 import path from "node:path";
 import fs from "node:fs";
 import { URLS } from "../../../utitls/url.js";
+import { DesktopNotification } from "../../../utitls/desktop-notification.js";
 
 export async function UploadPrimaryFileUpload(page: Page) {
 
@@ -58,9 +59,21 @@ export async function UploadPrimaryFileUpload(page: Page) {
     console.log(message);
 
     if (message.includes('successfully')) {
+
         console.log(`🎉 ${file} uploaded successfully`);
+
+        DesktopNotification(
+            "⚡ Upload Primary Module Completed ",
+            `Upload Primary files creation & uploading completed!`
+        );
     } else if (message.includes('failed')) {
+
         console.log(`❌ Upload completed with failed records: ${message}`);
+
+        DesktopNotification(
+            "🔺 Upload Primary Module Completed ",
+            ` Upload completed with failed records: ${message}`
+        );
     }
 
     await page.waitForTimeout(5000);

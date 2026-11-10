@@ -66,7 +66,7 @@ export async function StockImportFileUpload(page: Page) {
 
     // Desktop notification
     DesktopNotification(
-        "Stock Import Completed 🎉",
+        "⚡ Stock Import Completed ",
         "Stock Import file created and uploaded successfully!"
     );
 

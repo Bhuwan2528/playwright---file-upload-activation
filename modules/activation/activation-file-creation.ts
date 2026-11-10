@@ -1,4 +1,3 @@
-
 import ExcelJS from 'exceljs';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -8,39 +7,23 @@ import { GeneratedFileRename } from '../utility/generated-file-rename.js';
 import { findColumnByAliases, type ExcelHeader } from '../utility/column-helper.js';
 import { COLUMN_ALIASES } from '../../config/column-aliases.js';
 
-export async function ActivationFileCreation() {
+export async function ActivationFileCreation(rawFilePath: string) {
 
-    // Folder paths
-    const dataFolder = path.join(process.cwd(), 'data')
-    const activationFolder = path.join(dataFolder, 'activation')
-    const rawFolder = path.join(activationFolder, 'activation-raw-data');
+    // Check raw Excel file
+    if (!fs.existsSync(rawFilePath)) {
+        throw new Error(`Raw Excel file not found: ${rawFilePath}`);
+    }
+
+    // Output folder paths
+    const dataFolder = path.join(process.cwd(), 'data');
+    const activationFolder = path.join(dataFolder, 'activation');
     const outputFolder = path.join(activationFolder, 'activation-data');
 
-    // Create output folder
     fs.mkdirSync(outputFolder, { recursive: true });
-
-    // Find Excel file
-    const files = fs.readdirSync(rawFolder).filter(file =>
-        !file.startsWith('~$') &&
-        file.toLowerCase().endsWith('.xlsx')
-    );
-
-    if (files.length === 0) {
-        throw new Error('Raw Excel file not found!');
-    }
-
-    // First Excel file select
-    const rawFileName = files[0];
-
-    if (!rawFileName) {
-        throw new Error('Raw Excel file not found!');
-    }
-
-    const rawFile = path.join(rawFolder, rawFileName);
 
     // Read Excel file
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(rawFile);
+    await workbook.xlsx.readFile(rawFilePath);
 
     const worksheet = workbook.worksheets[0];
 
@@ -49,51 +32,47 @@ export async function ActivationFileCreation() {
     }
 
     // Get column names and their positions
-    const headers: ExcelHeader[] = []
+    const headers: ExcelHeader[] = [];
 
-    worksheet.getRow(1).eachCell((cell, colNumber)=>{
-        const name = cell.text.trim()
+    worksheet.getRow(1).eachCell((cell, colNumber) => {
+        const name = cell.text.trim();
 
-        if(name){
+        if (name) {
             headers.push({
                 name,
                 column: colNumber
-            })
+            });
         }
-    })
+    });
 
     // Store transformed records
     const outputRows: ActivationTemplate[] = [];
 
-        const skuCodeColumn = findColumnByAliases(
-            headers,
-            'SKU Code',
-            COLUMN_ALIASES.SKUCode
-        )
+    const skuCodeColumn = findColumnByAliases(
+        headers,
+        'SKU Code',
+        COLUMN_ALIASES.SKUCode
+    );
 
-        const serialNumberColumn = findColumnByAliases(
-            headers,
-            'Serial Number',
-            COLUMN_ALIASES.serialNumber
-        )
+    const serialNumberColumn = findColumnByAliases(
+        headers,
+        'Serial Number',
+        COLUMN_ALIASES.serialNumber
+    );
 
-        const activationDateColumn = findColumnByAliases(
-            headers,
-            'Activation Date',
-            COLUMN_ALIASES.tertiaryDate
-        )
-        if (
-            !skuCodeColumn || 
-            !serialNumberColumn || 
-            !activationDateColumn
-        ) {
-            throw new Error('Required Excel columns are missing!');
-        }
+    const activationDateColumn = findColumnByAliases(
+        headers,
+        'Activation Date',
+        COLUMN_ALIASES.tertiaryDate
+    );
+
+    if (!skuCodeColumn || !serialNumberColumn || !activationDateColumn) {
+        throw new Error('Required Excel columns are missing!');
+    }
 
     // Read every Excel row
     worksheet.eachRow((row, rowNumber) => {
 
-        // Skip header row
         if (rowNumber === 1) return;
 
         const sku_code = row.getCell(skuCodeColumn).text.trim();
@@ -101,7 +80,6 @@ export async function ActivationFileCreation() {
         const serial_number_secondary = serial_number_primary;
         const activationDate = row.getCell(activationDateColumn).value;
 
-        // Create output object
         outputRows.push({
             sku_code,
             serial_number_primary,
@@ -136,8 +114,12 @@ export async function ActivationFileCreation() {
     outputSheet.addRows(outputRows);
 
     // Save output Excel
-    const rawFileOrignalName = path.parse(rawFile).name
-    const outputFileName = GeneratedFileRename(rawFileOrignalName, 'activation')
+    const rawFileOriginalName = path.parse(rawFilePath).name;
+
+    const outputFileName = GeneratedFileRename(
+        rawFileOriginalName,
+        'activation'
+    );
 
     const outputPath = path.join(outputFolder, outputFileName);
 
@@ -149,6 +131,5 @@ export async function ActivationFileCreation() {
     console.log('Saved at:', outputPath);
     console.log('--------------------------------');
 
-    return outputPath
-    
+    return outputPath;
 }

@@ -89,7 +89,7 @@ export async function UploadPrimaryFileCreation() {
     const outputRows: UploadPrimaryTemplate[] = [];
 
     const zdCodes = new Set<string>();
-    let minimumInvoiceYear = Infinity;
+    const invoiceYears = new Set<number>();
 
     // Read every row
     worksheet.eachRow((row, rowNumber) => {
@@ -118,7 +118,7 @@ export async function UploadPrimaryFileCreation() {
 
         // Find minimum invoice year by splitting dd-mm-yyyy => yyyy
         const invoiceYear = Number(invoice_date.split('-')[2]);
-
+        invoiceYears.add(invoiceYear);
 
         outputRows.push({
             product_sku,
@@ -176,5 +176,11 @@ export async function UploadPrimaryFileCreation() {
     console.log('Saved at:', outputPath);
     console.log('--------------------------------');
 
-    return outputPath;
+    const years = [...invoiceYears].sort((a, b) => b - a);
+
+    return {
+        outputPath,
+        zdCodes: [...zdCodes],
+        years
+    };
 }
