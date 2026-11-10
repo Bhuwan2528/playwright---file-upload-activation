@@ -2,7 +2,7 @@ import type { Page } from "playwright";
 import path from "node:path";
 import fs from "node:fs";
 import { URLS } from "../../../utitls/url.js";
-import { DesktopNotification } from "../../../utitls/desktop-notification.js";
+import { BrowserPopup } from "../../../utitls/browser-popup.js";
 
 export async function StockImportFileUpload(page: Page) {
 
@@ -60,15 +60,30 @@ export async function StockImportFileUpload(page: Page) {
 
     console.log(message);
 
+    const failedCountMatch = message.match(
+        /(\d[\d,]*)\s*records?\s*(?:failed|fail)/i
+    );
+
+    const failedCount = failedCountMatch
+        ? Number(failedCountMatch[1]?.replace(/,/g, ""))
+        : null;
+
     if (message.toLowerCase().includes('successfully')) {
         console.log(`🎉 ${file} Stock Import uploaded successfully`);
-    }
 
-    // Desktop notification
-    DesktopNotification(
-        "⚡ Stock Import Completed ",
-        "Stock Import file created and uploaded successfully!"
-    );
+        // Desktop notification
+        BrowserPopup(
+            page,
+            "✅ Stock Import Completed ",
+        );
+    }
+    else {
+        // Desktop notification
+        BrowserPopup(
+            page,
+            `🔺 ${failedCount} stock Import records failed `,
+        );
+    }
 
     await page.waitForTimeout(5000);
 }

@@ -8,5 +8,5 @@ export function GeneratedFileRename( fileName: string, additionalName: string ) 
 
     const formattedDate = `${day}-${month}-${year}`;
 
-    return `${fileName}-( ${additionalName}-${formattedDate} ).xlsx`;
+    return `${fileName}-${additionalName}.xlsx`;
 }

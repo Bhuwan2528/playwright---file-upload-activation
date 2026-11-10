@@ -1,7 +1,7 @@
 import type { Page } from "playwright";
 import { PartnerLogin, PartnerLogout, failedUser } from "./partner-login.js";
 import { AcceptStockInRequests } from "./stock-in-request-acceptance.js";
-import { DesktopNotification } from "../../../utitls/desktop-notification.js";
+import { BrowserPopup } from "../../../utitls/browser-popup.js";
 
 
 export async function SaleIn(
@@ -15,6 +15,10 @@ export async function SaleIn(
         throw new Error("PARTNER_PASSWORD not found in .env!");
     }
 
+    if (zdCodes.length === 0) {
+        throw new Error("No ZD Codes found for Sale-In!");
+    }
+
     // Create a separate browser context for Partner Login
     const browser = page.context().browser();
 
@@ -24,24 +28,30 @@ export async function SaleIn(
 
     const partnerContext = await browser.newContext();
 
+    failedUser.length = 0;
+
+    const failedProcessing: { LoginId: string; reason: string }[] = [];
+
     try {
+
         const partnerPage = await partnerContext.newPage();
 
         partnerPage.setDefaultTimeout(60000);
         partnerPage.setDefaultNavigationTimeout(120000);
 
-        failedUser.length = 0;
-
         console.log("========================================");
         console.log("SALE-IN PROCESS STARTED");
         console.log("Total Partners:", zdCodes.length);
+        console.log("Partner IDs:", zdCodes);
         console.log("Years:", years);
         console.log("========================================");
 
         // Process every partner
         for (const zdCode of zdCodes) {
 
-            console.log(`\nProcessing Partner: ${zdCode}`);
+            console.log("\n========================================");
+            console.log("PROCESSING PARTNER:", zdCode);
+            console.log("========================================");
 
             const loginSuccess = await PartnerLogin(
                 partnerPage,
@@ -54,48 +64,92 @@ export async function SaleIn(
             }
 
             try {
+
                 await AcceptStockInRequests(partnerPage, years);
+
+            } catch (error) {
+
+                const reason = error instanceof Error
+                    ? error.message
+                    : String(error);
+
+                console.log(`⚠ Sale-In Processing Failed: ${zdCode}`);
+                console.log("REASON:", reason);
+
+                failedProcessing.push({
+                    LoginId: zdCode,
+                    reason
+                });
+
             } finally {
+
                 // Logout after processing each partner
                 await PartnerLogout(partnerPage);
+
+                console.log(`✅ Partner Logout: ${zdCode}`);
             }
         }
 
     } finally {
+
         // Close only Partner browser context
         await partnerContext.close();
+
+        console.log("Partner Browser Context Closed.");
     }
 
+
+    // Sale-In Summary
     console.log("\n========================================");
     console.log("SALE-IN PROCESS COMPLETED");
     console.log("Total Partners:", zdCodes.length);
     console.log("Failed Logins:", failedUser.length);
+    console.log("Failed Processing:", failedProcessing.length);
     console.log("========================================");
 
-    // Display all failed users
-    if (failedUser.length > 0) {
 
-        console.log("\n------------------------");
-        console.log("FAILED USERS");
-        console.log("------------------------");
+    // Display Failed Users
+    if (failedUser.length > 0 || failedProcessing.length > 0) {
 
-        failedUser.forEach((user, index) => {
-            console.log(`${index + 1}. Login ID: ${user.LoginId}`);
-            console.log(`   Reason: ${user.reason}`);
+        if (failedUser.length > 0) {
+
+            console.log("\n------------------------");
+            console.log("FAILED LOGINS");
             console.log("------------------------");
-        });
 
-        DesktopNotification(
-            "🔺 Sale In Module Completed ",
-            `${failedUser.length} partners failed to login , check Terminal`
+            failedUser.forEach((user, index) => {
+                console.log(`${index + 1}. Login ID: ${user.LoginId}`);
+                console.log(`   Reason: ${user.reason}`);
+                console.log("------------------------");
+            });
+        }
+
+        if (failedProcessing.length > 0) {
+
+            console.log("\n------------------------");
+            console.log("FAILED PROCESSING");
+            console.log("------------------------");
+
+            failedProcessing.forEach((user, index) => {
+                console.log(`${index + 1}. Login ID: ${user.LoginId}`);
+                console.log(`   Reason: ${user.reason}`);
+                console.log("------------------------");
+            });
+        }
+
+        BrowserPopup(
+            page,
+            "🔺 Sale-In Module Completed",
+            `Login Failures: ${failedUser.length}, Processing Failures: ${failedProcessing.length}. Check Terminal.`
         );
 
     } else {
-        console.log("\n🎉 All partners processed successfully!");
 
-        DesktopNotification(
-            "⚡ Sale In Module Completed ",
-            `Sale in module completed and all partners processed`
+        console.log("\n🎉 All Partners Processed Successfully!");
+
+        BrowserPopup(
+            page,
+            "⚡ Sale-In Module Completed"
         );
     }
 

@@ -194,7 +194,7 @@ export async function FailedActivationRawFileCreation() {
 
     const fileName = GeneratedFileRename(
         originalFileName,
-        'filtered-FANR-file'
+        'FANR'
     );
 
     const outputPath = path.join(outputFolder, fileName);

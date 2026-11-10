@@ -4,7 +4,7 @@ import { URLS } from "../../utitls/url.js";
 import path from "node:path";
 import fs from "node:fs";
 import { GeneratedFileRename } from "../utility/generated-file-rename.js";
-import { DesktopNotification } from "../../utitls/desktop-notification.js";
+import { BrowserPopup } from "../../utitls/browser-popup.js";
 
 export async function FinanceFileUpload(page: Page) {
 
@@ -61,6 +61,14 @@ export async function FinanceFileUpload(page: Page) {
 
     console.log(message);
 
+    const failedCountMatch = message.match(
+        /(\d[\d,]*)\s*records?\s*(?:failed|fail)/i
+    );
+
+    const failedCount = failedCountMatch
+        ? Number(failedCountMatch[1]?.replace(/,/g, ""))
+        : null;
+
     // Download failed report
     if (message.includes('failed')) {
 
@@ -88,14 +96,20 @@ export async function FinanceFileUpload(page: Page) {
 
         console.log(`👇🏻 ${fileName} downloaded`);
 
+        BrowserPopup(
+            page,
+            `❌ ${failedCount} Finance File records failed` ,
+        );
+
     } else if (message.includes('successfully')) {
         console.log(`🎉 ${file} uploaded successfully`);
-    }
 
-    DesktopNotification(
-        "⚡ Finance File Completed ",
-        "Finance file created and uploded successfully!"
-    );
+
+        BrowserPopup(
+            page,
+            "✅ Finance File Completed ",
+        );
+    }
 
     await page.waitForTimeout(5000)
 }

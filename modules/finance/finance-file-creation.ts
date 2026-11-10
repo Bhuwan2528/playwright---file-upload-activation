@@ -7,8 +7,10 @@ import { GeneratedFileRename } from "../utility/generated-file-rename.js";
 import { FINANCE_PARTNERS } from "../../config/finance-partner.js";
 import { findColumnByAliases, type ExcelHeader } from "../utility/column-helper.js";
 import { COLUMN_ALIASES } from "../../config/column-aliases.js";
+import { ShowFileReviewModal } from "../utility/file-review-modal.js";
+import type { Page } from "playwright";
 
-export async function FinanceFileCreation(){
+export async function FinanceFileCreation(page: Page){
 
     // Folder paths
     const dataFolder = path.join(process.cwd(), 'data')
@@ -145,6 +147,10 @@ export async function FinanceFileCreation(){
     console.log('Total records:', outputRows.length);
     console.log('Saved at:', outputFilePath);
     console.log('--------------------------------');
+
+
+    
+    await ShowFileReviewModal(page, outputFilePath, "Finance File Created!");
 
     return outputFilePath;
 }

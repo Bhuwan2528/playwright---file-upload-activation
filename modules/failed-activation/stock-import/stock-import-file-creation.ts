@@ -5,8 +5,10 @@ import { findColumnByAliases, type ExcelHeader } from "../../utility/column-help
 import type { StockImportTemplate } from "../../../schema/failed-activation-schemas/stock-import-template.js";
 import { COLUMN_ALIASES } from "../../../config/column-aliases.js";
 import { GeneratedFileRename } from "../../utility/generated-file-rename.js";
+import { ShowFileReviewModal } from "../../utility/file-review-modal.js";
+import type { Page } from "playwright";
 
-export async function StockImportFileCreation(){
+export async function StockImportFileCreation(page: Page){
 
     //folders and file paths 
 
@@ -122,6 +124,7 @@ export async function StockImportFileCreation(){
     console.log('Saved at:', outputPath);
     console.log('--------------------------------');
 
-    return outputPath;
+    
+    await ShowFileReviewModal(page, outputPath, "Stock Import from FANR File Genrated!");
 
 }

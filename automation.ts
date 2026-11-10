@@ -1,6 +1,8 @@
 import playwright from "playwright";
+import type { Page } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
+import "dotenv/config";
 
 import { ActivationFileUpload } from "./modules/activation/activation-file-upload.js";
 import { ActivationFileCreation } from "./modules/activation/activation-file-creation.js";
@@ -8,21 +10,128 @@ import {
     RegisterFileOpenFunction,
     ShowFileReviewModal
 } from "./modules/utility/file-review-modal.js";
+
 import { FinanceFileCreation } from "./modules/finance/finance-file-creation.js";
 import { FinanceFileUpload } from "./modules/finance/finance-file-upload.js";
-import { DesktopNotification } from "./utitls/desktop-notification.js";
+
 import { Login } from "./modules/login/login.js";
 import { FailedActivationRawFileCreation } from "./modules/failed-activation/failed-activation-raw-file.js";
-import { BackupGeneratedFiles } from "./utitls/backup-files.js";
-import { CleanupGeneratedFiles } from "./utitls/cleanup-files.js";
+
 import { StockImportFileCreation } from "./modules/failed-activation/stock-import/stock-import-file-creation.js";
 import { StockImportFileUpload } from "./modules/failed-activation/stock-import/stock-import-file-upload.js";
+
 import { UploadPrimaryFileCreation } from "./modules/failed-activation/upload-primary/upload-primary-file-creation.js";
 import { UploadPrimaryFileUpload } from "./modules/failed-activation/upload-primary/upload-primary-file-upload.js";
+
 import { SaleIn } from "./modules/failed-activation/sale-in/sale-in.js";
-import "dotenv/config";
+
+import { BackupGeneratedFiles } from "./utitls/backup-files.js";
+import { CleanupGeneratedFiles } from "./utitls/cleanup-files.js";
+import { DesktopNotification } from "./utitls/desktop-notification.js";
+import { BrowserPopup } from "./utitls/browser-popup.js";
 
 
+// Select Original Activation Raw File
+function GetOriginalActivationRawFile(): string {
+
+    const rawFolder = path.join(
+        process.cwd(),
+        "data",
+        "activation",
+        "activation-raw-data"
+    );
+
+    const rawFiles = fs.readdirSync(rawFolder).filter(file =>
+        !file.startsWith("~$") &&
+        file.toLowerCase().endsWith(".xlsx")
+    );
+
+    const rawFile = rawFiles[0];
+
+    if (!rawFile) {
+        throw new Error("Original Activation Raw File not found!");
+    }
+
+    return path.join(rawFolder, rawFile);
+}
+
+
+// Failed Activation Process
+async function FailedActivationProcess(page: Page): Promise<void> {
+
+    console.log("\n========================================");
+    console.log("FAILED ACTIVATION PROCESS STARTED");
+    console.log("========================================");
+
+    // Create Filtered Failed Activation Raw File
+    const failedActivationRawFilePath =
+        await FailedActivationRawFileCreation();
+
+
+    // Stock Import
+    await StockImportFileCreation(page);
+    await StockImportFileUpload(page);
+
+
+    // Upload Primary
+    const uploadPrimaryResult = await UploadPrimaryFileCreation(page);
+    await UploadPrimaryFileUpload(page);
+
+    console.log("ZD Codes Received:", uploadPrimaryResult.zdCodes);
+    console.log("Total Partners:", uploadPrimaryResult.zdCodes.length);
+
+    // Sale-In
+    await SaleIn(
+        page,
+        uploadPrimaryResult.zdCodes,
+        uploadPrimaryResult.years
+    );
+
+
+    // Retry Activation using Filtered Raw File
+    const activationOutputPath = await ActivationFileCreation(
+        failedActivationRawFilePath
+    );
+
+    await ShowFileReviewModal(page, activationOutputPath, "Activation from FANR file created");
+
+    const is_activation_failed = await ActivationFileUpload(
+        page,
+        activationOutputPath
+    );
+
+    if (is_activation_failed) {
+        console.log("⚠ Some records are still failing after Activation Retry.");
+    }
+}
+
+
+// Finance Process
+async function FinanceProcess(page: Page): Promise<void> {
+
+    console.log("\n========================================");
+    console.log("FINANCE PROCESS STARTED");
+    console.log("========================================");
+
+    const financeOutputPath = await FinanceFileCreation(page);
+    await FinanceFileUpload(page);
+}
+
+
+// Backup and Cleanup
+async function BackupAndCleanup(page: Page): Promise<void> {
+
+    console.log("\n========================================");
+    console.log("BACKUP AND CLEANUP STARTED");
+    console.log("========================================");
+
+    const backedUpFiles = await BackupGeneratedFiles();
+
+    await CleanupGeneratedFiles(backedUpFiles, page);
+}
+
+
+// Main Automation
 async function main() {
 
     let browser: playwright.Browser | undefined;
@@ -37,35 +146,15 @@ async function main() {
 
         await RegisterFileOpenFunction(page);
 
-        // Login and homepage waiting
+        // Login
         await Login(page);
 
 
-        // Select Original Raw Activation File
-        const rawFolder = path.join(
-            process.cwd(),
-            "data",
-            "activation",
-            "activation-raw-data"
-        );
-
-        const rawFiles = fs.readdirSync(rawFolder).filter(file =>
-            !file.startsWith("~$") &&
-            file.toLowerCase().endsWith(".xlsx")
-        );
-
-        const rawFile = rawFiles[0];
-
-        if (!rawFile) {
-            throw new Error("Original Activation Raw File not found!");
-        }
-
-        const rawFilePath = path.join(rawFolder, rawFile);
-
-
-        // Initial Activation Creation and Upload
+        // Initial Activation
+        const rawFilePath = GetOriginalActivationRawFile();
         const activationOutputPath = await ActivationFileCreation(rawFilePath);
-        await ShowFileReviewModal(page, activationOutputPath);
+        await ShowFileReviewModal(page, activationOutputPath, "Activation file created!");
+
         const is_activation_failed = await ActivationFileUpload(
             page,
             activationOutputPath
@@ -74,65 +163,24 @@ async function main() {
 
         // Failed Activation Process
         if (is_activation_failed) {
-
-            console.log("\n========================================");
-            console.log("FAILED ACTIVATION PROCESS STARTED");
-            console.log("========================================");
-
-
-            // Create Filtered Failed Activation Raw File
-            const failedActivationRawFilePath = await FailedActivationRawFileCreation();
-
-
-            // Stock Import
-            const stockImportPath = await StockImportFileCreation();
-            await ShowFileReviewModal(page, stockImportPath);
-            await StockImportFileUpload(page);
-
-
-            // Upload Primary
-            const uploadPrimaryResult = await UploadPrimaryFileCreation();
-            await ShowFileReviewModal(page, uploadPrimaryResult.outputPath);
-            await UploadPrimaryFileUpload(page);
-
-
-            // Sale-In
-            await SaleIn(
-                page,
-                uploadPrimaryResult.zdCodes,
-                uploadPrimaryResult.years
-            );
-
-
-            // Retry Activation using Filtered Raw File
-            const activationOutputPath_1 = await ActivationFileCreation(
-                failedActivationRawFilePath
-            );
-
-            await ShowFileReviewModal(page, activationOutputPath_1);
-
-            const is_activation_failed_1 = await ActivationFileUpload(
-                page,
-                activationOutputPath_1
-            );
-
+            await FailedActivationProcess(page);
         } else {
-
             console.log("\n✅ No Failed Activations Found!");
             console.log("Skipping Failed Activation Process...");
 
+            BrowserPopup(
+                page,
+                "✅ No Failed Activations Found!",
+                "Skipping Failed Activation Process..."
+            )
         }
 
 
-        // Finance File Module
-        const financeOutputPath = await FinanceFileCreation();
-        await ShowFileReviewModal(page, financeOutputPath);
-        await FinanceFileUpload(page);
-
+        // Finance Process
+        await FinanceProcess(page);
 
         // Backup and Cleanup
-        const backedUpFiles = await BackupGeneratedFiles();
-        await CleanupGeneratedFiles(backedUpFiles);
+        await BackupAndCleanup(page);
 
 
         console.log("========================================");

@@ -31,6 +31,9 @@ export const COLUMN_ALIASES = {
         "Primary To Code",
         "ZD Code"
     ],
+    ND_Code: [
+        "Current ND Code"
+    ],
 
     primaryInvoice: [
         "Primary Invoice",

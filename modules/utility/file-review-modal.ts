@@ -1,7 +1,7 @@
 
-import type { Page } from 'playwright';
-import path from 'node:path';
-import open from 'open';
+import type { Page } from "playwright";
+import path from "node:path";
+import open from "open";
 
 declare global {
     interface Window {
@@ -13,7 +13,7 @@ declare global {
 export async function RegisterFileOpenFunction(page: Page) {
 
     await page.exposeFunction(
-        'openGeneratedExcelFile',
+        "openGeneratedExcelFile",
         async (outputPath: string) => {
             await open(outputPath);
         }
@@ -24,17 +24,18 @@ export async function RegisterFileOpenFunction(page: Page) {
 
 export async function ShowFileReviewModal(
     page: Page,
-    outputPath: string
+    outputPath: string,
+    title: string = "Excel File Created Successfully"
 ) {
 
     const fileName = path.basename(outputPath);
 
     // Browser mein modal create karo
-    await page.evaluate(({ fileName, outputPath }) => {
+    await page.evaluate(({ fileName, outputPath, title }) => {
 
-        const modal = document.createElement('div');
+        const modal = document.createElement("div");
 
-        modal.id = 'file-review-modal';
+        modal.id = "file-review-modal";
 
         modal.style.cssText = `
             position: fixed;
@@ -47,7 +48,7 @@ export async function ShowFileReviewModal(
             font-family: Arial, sans-serif;
         `;
 
-        const card = document.createElement('div');
+        const card = document.createElement("div");
 
         card.style.cssText = `
             background: white;
@@ -59,18 +60,18 @@ export async function ShowFileReviewModal(
             box-shadow: 0 10px 40px rgba(0,0,0,0.25);
         `;
 
-        const heading = document.createElement('h2');
-        heading.textContent = 'Excel File Created Successfully!';
+        const heading = document.createElement("h2");
+        heading.textContent = title;
 
         heading.style.cssText = `
             font-size: 21px;
             margin: 0 0 12px;
         `;
 
-        const description = document.createElement('p');
+        const description = document.createElement("p");
 
         description.textContent =
-            'Please review your generated Excel file before uploading.';
+            "Please review your generated Excel file before uploading.";
 
         description.style.cssText = `
             color: #666;
@@ -78,10 +79,10 @@ export async function ShowFileReviewModal(
             line-height: 1.5;
         `;
 
-        const fileLink = document.createElement('a');
+        const fileLink = document.createElement("a");
 
-        fileLink.href = '#';
-        fileLink.textContent = '📊 ' + fileName;
+        fileLink.href = "#";
+        fileLink.textContent = "📊 " + fileName;
 
         fileLink.style.cssText = `
             display: block;
@@ -96,7 +97,7 @@ export async function ShowFileReviewModal(
             word-break: break-all;
         `;
 
-        fileLink.addEventListener('click', (event) => {
+        fileLink.addEventListener("click", (event) => {
 
             event.preventDefault();
 
@@ -104,9 +105,9 @@ export async function ShowFileReviewModal(
 
         });
 
-        const continueButton = document.createElement('button');
+        const continueButton = document.createElement("button");
 
-        continueButton.textContent = 'Continue to Upload';
+        continueButton.textContent = "Continue to Upload";
 
         continueButton.style.cssText = `
             width: 100%;
@@ -120,11 +121,11 @@ export async function ShowFileReviewModal(
             cursor: pointer;
         `;
 
-        continueButton.addEventListener('click', () => {
+        continueButton.addEventListener("click", () => {
 
-            modal.dataset.continue = 'true';
+            modal.dataset.continue = "true";
 
-            continueButton.textContent = 'Continuing...';
+            continueButton.textContent = "Continuing...";
 
             continueButton.disabled = true;
 
@@ -139,16 +140,16 @@ export async function ShowFileReviewModal(
 
         document.body.appendChild(modal);
 
-    }, { fileName, outputPath });
+    }, { fileName, outputPath, title });
 
     console.log(`Waiting for file review: ${fileName}`);
 
     // Continue button click hone tak wait karo
     await page.waitForFunction(
         () => {
-            const modal = document.getElementById('file-review-modal');
+            const modal = document.getElementById("file-review-modal");
 
-            return modal?.dataset.continue === 'true';
+            return modal?.dataset.continue === "true";
         },
         null,
         { timeout: 0 }
@@ -156,10 +157,10 @@ export async function ShowFileReviewModal(
 
     // Modal remove karo
     await page.evaluate(() => {
-        document.getElementById('file-review-modal')?.remove();
+        document.getElementById("file-review-modal")?.remove();
     });
 
-    console.log('File review completed. Continuing automation...');
-    console.log('--------------------------------');
+    console.log("File review completed. Continuing automation...");
+    console.log("--------------------------------");
 
 }

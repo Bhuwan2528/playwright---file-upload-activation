@@ -1,6 +1,7 @@
 import type { Page } from "playwright";
 import 'dotenv/config';
 import { URLS } from "../../utitls/url.js";
+import { BrowserPopup } from "../../utitls/browser-popup.js";
 
 export async function Login(page: Page) {
 
@@ -25,5 +26,10 @@ export async function Login(page: Page) {
             timeout: 0,
             waitUntil: "domcontentloaded"
         }
+    )
+
+    BrowserPopup(
+        page,
+        "Login Comleted"
     )
 }

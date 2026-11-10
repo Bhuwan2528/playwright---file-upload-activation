@@ -7,8 +7,10 @@ import { COLUMN_ALIASES } from "../../../config/column-aliases.js";
 import type { UploadPrimaryTemplate } from "../../../schema/failed-activation-schemas/upload-primary-template.js";
 import { formatDate_DDMMYYYY } from "../../utility/format-date.js";
 import { GeneratedFileRename } from "../../utility/generated-file-rename.js";
+import type { Page } from "playwright";
+import { ShowFileReviewModal } from "../../utility/file-review-modal.js";
 
-export async function UploadPrimaryFileCreation() {
+export async function UploadPrimaryFileCreation(page: Page) {
 
     //folders and file paths 
 
@@ -69,8 +71,8 @@ export async function UploadPrimaryFileCreation() {
 
     const zdCodeColumn = findColumnByAliases(
         headers,
-        'ZD Code',
-        COLUMN_ALIASES.primaryToCode
+        'ND Code',
+        COLUMN_ALIASES.ND_Code
     );
 
     const invoiceNumberColumn = findColumnByAliases(
@@ -100,9 +102,26 @@ export async function UploadPrimaryFileCreation() {
         const serial_number_primary = row.getCell(serialNumberColumn).text.trim();
 
         const ZD_Code = row.getCell(zdCodeColumn).text.trim();
-        const invoice_number = row.getCell(invoiceNumberColumn).text.trim();
+        let invoice_number = row.getCell(invoiceNumberColumn).text.trim();
 
-        const invoiceDate = row.getCell(invoiceDateColumn).value;
+        if (!invoice_number) {
+            const today = new Date();
+
+            const date = [
+                String(today.getDate()).padStart(2, '0'),
+                String(today.getMonth() + 1).padStart(2, '0'),
+                today.getFullYear()
+            ].join('');
+
+            invoice_number = `INV-${date}-100`;
+        }
+
+        const rawinvoiceDate = row.getCell(invoiceDateColumn).value;
+
+        const invoiceDate = rawinvoiceDate
+        ? new Date(rawinvoiceDate as Date)
+        : new Date();
+
         const invoice_date = formatDate_DDMMYYYY(invoiceDate);
 
         // Skip rows without SKU or serial number
@@ -178,8 +197,14 @@ export async function UploadPrimaryFileCreation() {
 
     const years = [...invoiceYears].sort((a, b) => b - a);
 
+    console.log("Unique ZD Codes (PRIMARY):", [...zdCodes]);
+    console.log("Total ZD Codes (PRIMARY):", zdCodes.size);
+
+
+    
+    await ShowFileReviewModal(page, outputPath, "Upload Primary form FANR File Generated!");
+
     return {
-        outputPath,
         zdCodes: [...zdCodes],
         years
     };

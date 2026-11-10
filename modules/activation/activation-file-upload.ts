@@ -3,7 +3,8 @@ import path from "node:path";
 import fs from "node:fs";
 import { URLS } from "../../utitls/url.js";
 import { GeneratedFileRename } from "../utility/generated-file-rename.js";
-import { DesktopNotification } from "../../utitls/desktop-notification.js";
+import { ActivationAuditRecovery } from "./activation-audit-recovery.js";
+import { BrowserPopup } from "../../utitls/browser-popup.js";
 
 export async function ActivationFileUpload(
     page: Page,
@@ -12,9 +13,7 @@ export async function ActivationFileUpload(
 
     await page.goto(URLS.ACTIVATIONS_UPLOAD_URL);
 
-    const dataFolder = path.join(process.cwd(), "data");
-    const activationFolder = path.join(dataFolder, "activation");
-
+    const activationFolder = path.join(process.cwd(), "data", "activation");
     const file = path.basename(filePath);
 
     let is_activation_failed = false;
@@ -42,6 +41,10 @@ export async function ActivationFileUpload(
     });
 
     await uploadBtn.waitFor({ state: "visible" });
+
+    // Capture upload date and time
+    const uploadStartedAt = new Date();
+
     await uploadBtn.click();
 
     await toast.waitFor({
@@ -50,11 +53,35 @@ export async function ActivationFileUpload(
     });
 
     const message = await toast.innerText();
-
+    // const message = 'unexpected error occured';
     console.log(message);
 
-    // Failed File Download
-    if (message.toLowerCase().includes("failed")) {
+    const failedCountMatch = message.match(
+        /(\d[\d,]*)\s*records?\s*(?:failed|fail)/i
+    );
+
+    const failedCount = failedCountMatch
+        ? Number(failedCountMatch[1]?.replace(/,/g, ""))
+        : null;
+
+    
+
+    // Unexpected Error - Check Import Audit
+    if (message.toLowerCase().includes("unexpected error")) {
+
+        console.log("⚠ Unexpected Error Detected!");
+        console.log("Checking Import File Audit...");
+
+        is_activation_failed = await ActivationAuditRecovery(
+            page,
+            filePath,
+            uploadStartedAt
+        );
+
+    }
+
+    // Normal Failed File Download
+    else if (message.toLowerCase().includes("failed")) {
 
         is_activation_failed = true;
 
@@ -90,17 +117,25 @@ export async function ActivationFileUpload(
             path.join(downloadFolder, fileName)
         );
 
-        console.log(`👇🏻 ${file} downloaded`);
+        console.log(`👇🏻 ${fileName} downloaded`);
 
-    } else if (message.toLowerCase().includes("successfully")) {
+        BrowserPopup(
+            page,
+            `❌ ${failedCount} activation Records Failed`,
+            ''
+        )
 
-        console.log(`🎉 ${file} uploaded successfully`);
+
     }
 
-    DesktopNotification(
-        "⚡ Activation Module Completed ",
-        "Activation file creation & uploading completed!"
-    );
+    else if (message.toLowerCase().includes("successfully")) {
+
+        BrowserPopup(
+            page,
+            '✅ Activation Completed'
+        )
+        console.log(`🎉 ${file} uploaded successfully`);
+    }
 
     await page.waitForTimeout(5000);
 

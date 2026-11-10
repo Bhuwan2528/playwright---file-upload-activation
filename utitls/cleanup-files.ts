@@ -1,8 +1,9 @@
 
 import fs from "node:fs";
-import { DesktopNotification } from "./desktop-notification.js";
+import { BrowserPopup } from "./browser-popup.js";
+import type { Page } from "playwright";
 
-export async function CleanupGeneratedFiles(backedUpFiles: string[]) {
+export async function CleanupGeneratedFiles(backedUpFiles: string[], page: Page) {
 
     if (backedUpFiles.length === 0) {
         console.log('No files available for cleanup.');
@@ -25,7 +26,8 @@ export async function CleanupGeneratedFiles(backedUpFiles: string[]) {
     console.log('Deleted Files:', backedUpFiles.length);
     console.log('--------------------------------');
 
-    DesktopNotification(
+    BrowserPopup(
+        page,
         "⚡ Backup and Cleanup Done ",
         "Backup and Cleanup of all genrated files are done"
     );
